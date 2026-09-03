@@ -1,0 +1,36 @@
+# macOS and editor artifacts
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local configuration and databases
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+
+# Private imports, exports, and documents
+data/import/
+export_renders/
+data/private/
+data/export/
+private/
+documents/
+*.pdf
+
+# Local inspection/build scratch files
+.tmp/

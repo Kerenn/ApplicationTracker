@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Job Tracker{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23255849'/%3E%3Cpath d='M18 22h28v25H18zM25 22v-5h14v5' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">Job Application Tracker</a>
+    <nav aria-label="Main navigation">
+      <a href="/">Dashboard</a>
+      <a href="/board">Board</a>
+      <a href="/applications">Applications</a>
+      <a href="/applications/new">Add manually</a>
+      <a href="/imports">Import preview</a>
+    </nav>
+  </header>
+  <main class="page-shell">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">Local-first. Your database and documents stay on this Mac.</footer>
+</body>
+</html>

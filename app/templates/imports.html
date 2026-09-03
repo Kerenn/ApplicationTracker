@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Import preview · Job Tracker{% endblock %}
+{% block content %}
+<div class="page-title"><div><p class="eyebrow">No database changes</p><h1>Workbook import preview</h1><p>Inspect mapping decisions before importing any private application data.</p></div></div>
+<form class="url-form" method="post" action="/imports/preview"><label>Local workbook path</label><div class="inline-controls"><input name="path" value="{{ path }}" required><button>Preview</button></div></form>
+{% if error %}<div class="alert warning">{{ error }}</div>{% endif %}
+{% if preview %}
+  <div class="summary-strip"><div><span>Sheets</span><strong>{{ preview.sheet_names|length }}</strong></div><div><span>Application rows</span><strong>{{ preview.rows|length }}</strong></div><div><span>Cover-letter rows</span><strong>{{ preview.cover_letter_rows }}</strong></div></div>
+  <div class="alert">Preview only. There is deliberately no Import button in Version 1 until these mappings are reviewed.</div>
+  <section class="panel"><h2>Mapping warnings</h2><ul>{% for warning in preview.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>
+  <section class="panel"><h2>Rows</h2><div class="preview-cards">{% for row in preview.rows %}<article><h3>Source row {{ row.source_row }} · {{ row.direct.get('company', 'Company pending') }}</h3><dl class="mapping-list">{% for key, value in row.direct.items() %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>{% if row.unresolved %}<h4>Needs review</h4><dl class="mapping-list unresolved">{% for key, value in row.unresolved.items() %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>{% endif %}</article>{% endfor %}</div></section>
+{% endif %}
+{% endblock %}

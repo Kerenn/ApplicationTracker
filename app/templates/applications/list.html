@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Applications · Job Tracker{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><p class="eyebrow">Your pipeline</p><h1>Applications</h1></div>
+  <a class="button" href="/applications/new">Add manually</a>
+</div>
+
+<form class="filter-panel" method="get">
+  <label>Search<input name="search" value="{{ filters.get('search', '') }}" placeholder="Company, role or exact tag"></label>
+  <label>Status<select name="status"><option value="">All</option>{% for item in statuses %}<option {% if filters.get('status') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+  <label>Track<select name="track"><option value="">All</option>{% for item in tracks %}<option {% if filters.get('track') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+  <label>Priority<select name="priority"><option value="">All</option>{% for item in priorities %}<option {% if filters.get('priority') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+  <label>Company<input name="company" value="{{ filters.get('company', '') }}"></label>
+  <label>Location<input name="location" value="{{ filters.get('location', '') }}"></label>
+  <label>Sort<select name="sort">
+    <option value="newest" {% if filters.get('sort', 'newest') == 'newest' %}selected{% endif %}>Newest</option>
+    <option value="priority" {% if filters.get('sort') == 'priority' %}selected{% endif %}>Priority</option>
+    <option value="fit" {% if filters.get('sort') == 'fit' %}selected{% endif %}>Fit score</option>
+    <option value="applied" {% if filters.get('sort') == 'applied' %}selected{% endif %}>Applied date</option>
+  </select></label>
+  <div class="filter-actions"><button type="submit">Apply filters</button><a href="/applications">Reset</a></div>
+</form>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Company / role</th><th>Track</th><th>Location</th><th>Status / stage</th><th>Priority</th><th>Fit</th><th>Date found</th><th>Applied</th><th>Next action</th><th>Quick move</th></tr></thead>
+  <tbody>
+  {% for application in applications %}
+    <tr>
+      <td><a class="row-link" href="/applications/{{ application.id }}"><strong>{{ application.company or "Company pending" }}</strong><small>{{ application.role or "Role pending" }}</small></a>{% if application.tags %}<div class="tags">{% for tag in application.tags %}<span>{{ tag.name }}</span>{% endfor %}</div>{% endif %}</td>
+      <td>{{ application.primary_track }}</td><td>{{ application.location or "—" }}</td>
+      <td><span class="status status-{{ application.status|lower|replace(' ', '-') }}">{{ application.status }}</span><small>{{ application.pipeline_stage or "—" }}</small></td>
+      <td>{{ application.priority }}</td><td>{{ application.fit_score if application.fit_score is not none else "—" }}</td>
+      <td>{{ application.date_found }}</td><td>{{ application.applied_date or "—" }}</td><td>{{ application.next_action or "—" }}</td>
+      <td><form class="quick-move" method="post" action="/applications/{{ application.id }}/quick-status"><input type="hidden" name="return_to" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"><select name="status" aria-label="Move {{ application.company }}"><option selected>{{ application.status }}</option>{% for item in statuses %}{% if item != application.status %}<option>{{ item }}</option>{% endif %}{% endfor %}</select><button>Move</button></form></td>
+    </tr>
+  {% else %}<tr><td colspan="10" class="empty-state">No applications match these filters.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

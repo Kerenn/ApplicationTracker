@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% set editing = application is not none %}
+{% macro current(name, default='') -%}
+{{- values.get(name, (application|attr(name)) if editing else default) or '' -}}
+{%- endmacro %}
+{% block title %}{{ "Edit" if editing else "Add" }} application · Job Tracker{% endblock %}
+{% block content %}
+<div class="page-title"><div><p class="eyebrow">{{ "Update details" if editing else "Review before saving" }}</p><h1>{{ "Edit application" if editing else "Add application" }}</h1></div></div>
+
+{% if warning %}<div class="alert">{{ warning }}</div>{% endif %}
+{% if duplicate %}<div class="alert warning">This URL is already saved for <a href="/applications/{{ duplicate.id }}">{{ duplicate.company }} — {{ duplicate.role }}</a>.</div>{% endif %}
+
+<form class="application-form" method="post" action="{{ '/applications/' ~ application.id if editing else '/applications' }}">
+  <fieldset><legend>Job</legend><div class="form-grid">
+    <label>Company<input name="company" value="{{ current('company') }}"></label>
+    <label class="wide">Role<input name="role" value="{{ current('role') }}"></label>
+    <label class="wide">Job URL<input name="job_url" type="url" value="{{ current('job_url') }}"></label>
+    <label class="wide">Application URL<input name="application_url" type="url" value="{{ current('application_url') }}"></label>
+    <label>Source<input name="source" value="{{ current('source') }}"></label>
+    <label>Location<input name="location" value="{{ current('location') }}"></label>
+    <label>Work mode<select name="work_mode"><option value="">Not selected</option>{% for item in work_modes %}<option {% if current('work_mode') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Employment type<input name="employment_type" value="{{ current('employment_type') }}" placeholder="Full-time"></label>
+    <label class="wide">Recruiter / contact<input name="contact" value="{{ current('contact') }}"></label>
+  </div></fieldset>
+
+  <fieldset><legend>Tracking</legend><div class="form-grid">
+    <label>Primary track<select name="primary_track">{% for item in tracks %}<option {% if current('primary_track', 'Other') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Status<select name="status">{% for item in statuses %}<option {% if current('status', 'Saved') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Stage<select name="pipeline_stage"><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}<optgroup label="{{ status }}">{% for stage in stages %}<option {% if current('pipeline_stage') == stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
+    <label>Priority<select name="priority">{% for item in priorities %}<option {% if current('priority', 'Medium') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Fit /10<input name="fit_score" type="number" min="0" max="10" step="0.1" value="{{ current('fit_score') }}"></label>
+    <label class="wide">Tags<input name="tags" value="{% if values.get('tags') %}{{ values.get('tags') }}{% elif editing %}{{ application.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="Embedded, Electronics, HW/SW Co-Design"></label>
+  </div></fieldset>
+
+  <fieldset><legend>Dates</legend><div class="form-grid dates">
+    <label>Date found<input name="date_found" type="date" value="{{ current('date_found') }}"></label>
+    <label>Applied date<input name="applied_date" type="date" value="{{ current('applied_date') }}"></label>
+    <label>Deadline<input name="application_deadline" type="date" value="{{ current('application_deadline') }}"></label>
+    <label>Follow-up<input name="follow_up_date" type="date" value="{{ current('follow_up_date') }}"></label>
+    <label>Interview<input name="interview_date" type="date" value="{{ current('interview_date') }}"></label>
+  </div></fieldset>
+
+  <fieldset><legend>Preparation</legend><div class="form-grid">
+    <label>Salary expectation<input name="salary_expectation" value="{{ current('salary_expectation') }}" placeholder="€75,000 gross/year"></label>
+    <label>CV version<input name="cv_version" value="{{ current('cv_version') }}"></label>
+    <label class="wide">Salary notes<textarea name="salary_notes">{{ current('salary_notes') }}</textarea></label>
+    <label class="wide">Next action<textarea name="next_action">{{ current('next_action') }}</textarea></label>
+    <label class="wide">Notes<textarea name="notes" rows="8">{{ current('notes') }}</textarea></label>
+  </div></fieldset>
+  <div class="form-actions"><button type="submit">{{ "Save changes" if editing else "Save application" }}</button><a href="{{ '/applications/' ~ application.id if editing else '/applications' }}">Cancel</a></div>
+</form>
+{% endblock %}

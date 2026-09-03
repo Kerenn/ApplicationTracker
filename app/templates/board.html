@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Board · Job Tracker{% endblock %}
+{% block content %}
+<div class="page-title"><div><p class="eyebrow">Move work forward</p><h1>Application board</h1><p>Use the quick selector on a card for broad moves. Open a card to record replies and exact stages.</p></div><a class="button" href="/applications/new">Add application</a></div>
+
+<div class="board" aria-label="Application pipeline">
+  {% for status in active_statuses %}
+  <section class="board-column">
+    <header><h2>{{ status }}</h2><span>{{ columns[status]|length }}</span></header>
+    <div class="board-cards">
+      {% for application in columns[status] %}
+      <article class="board-card {{ 'has-attention' if application.attention_count }}">
+        <div class="card-top"><span class="priority priority-{{ application.priority|lower }}">{{ application.priority }}</span>{% if application.attention_count %}<span class="attention-badge">{{ application.attention_count }} action</span>{% endif %}</div>
+        <a href="/applications/{{ application.id }}"><strong>{{ application.company or "Company pending" }}</strong><span>{{ application.role or "Role pending" }}</span></a>
+        <div class="stage-chip">{{ application.pipeline_stage or status }}</div>
+        {% if application.next_action %}<p><small>Next</small>{{ application.next_action }}</p>{% endif %}
+        {% if application.follow_up_date %}<p class="due-line"><small>Follow-up</small>{{ application.follow_up_date }}</p>{% endif %}
+        <form class="quick-move" method="post" action="/applications/{{ application.id }}/quick-status"><input type="hidden" name="return_to" value="/board"><select name="status" aria-label="Move {{ application.company }}"><option selected>{{ application.status }}</option>{% for item in statuses %}{% if item != application.status %}<option>{{ item }}</option>{% endif %}{% endfor %}</select><button>Move</button></form>
+        <div class="card-links"><a href="/applications/{{ application.id }}#activity">Log reply</a><a href="/applications/{{ application.id }}">Open</a></div>
+      </article>
+      {% else %}<div class="board-empty">No applications</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+
+{% if terminal %}<section class="panel terminal-list"><div class="section-heading"><h2>Closed applications</h2><span class="quiet">Rejected and withdrawn</span></div><div>{% for application in terminal %}<a href="/applications/{{ application.id }}"><strong>{{ application.company }}</strong><span>{{ application.role }}</span><span class="status status-{{ application.status|lower }}">{{ application.status }}</span></a>{% endfor %}</div></section>{% endif %}
+{% endblock %}
