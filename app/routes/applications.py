@@ -6,7 +6,13 @@ from sqlalchemy import case, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.constants import ACTIVITY_DIRECTIONS, ACTIVITY_TYPES, ApplicationStatus, Priority
+from app.constants import (
+    ACTIVITY_DIRECTIONS,
+    ACTIVITY_TYPES,
+    INTERVIEW_FORMATS,
+    ApplicationStatus,
+    Priority,
+)
 from app.database import get_session
 from app.models import (
     Application,
@@ -16,6 +22,7 @@ from app.models import (
     Tag,
 )
 from app.services.applications import (
+    apply_quick_action,
     apply_application_form,
     change_application_status,
     find_duplicate,
@@ -27,6 +34,42 @@ from app.web import templates
 
 
 router = APIRouter()
+
+EXTRACTION_REVIEW_FIELDS = (
+    ("company", "Company"),
+    ("role", "Role"),
+    ("location", "Location"),
+    ("employment_type", "Employment type"),
+    ("application_url", "Application URL"),
+)
+
+
+def _safe_return_to(value: object | None, fallback: str) -> str:
+    return_to = str(value or fallback)
+    if not return_to.startswith("/") or return_to.startswith("//"):
+        return fallback
+    return return_to
+
+
+def _missing_required_job_fields(form) -> list[str]:
+    return [
+        label
+        for name, label in (("company", "Company"), ("role", "Role"))
+        if not str(form.get(name, "")).strip()
+    ]
+
+
+def _extraction_review(values: dict[str, object]) -> list[dict[str, object]]:
+    return [
+        {
+            "name": name,
+            "label": label,
+            "value": str(values.get(name) or "").strip(),
+            "missing": not bool(str(values.get(name) or "").strip()),
+            "confirm": name in {"company", "role"} and bool(values.get(name)),
+        }
+        for name, label in EXTRACTION_REVIEW_FIELDS
+    ]
 
 
 def _application_query():
@@ -51,7 +94,10 @@ def _get_application(session: Session, application_id: int) -> Application:
 @router.get("/applications", name="application_list")
 def application_list(request: Request, session: Session = Depends(get_session)):
     params = request.query_params
-    query = select(Application).options(selectinload(Application.tags))
+    query = select(Application).options(
+        selectinload(Application.tags),
+        selectinload(Application.activities),
+    )
     search = params.get("search", "").strip()
     if search:
         term = f"%{search}%"
@@ -105,7 +151,13 @@ def application_new(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="applications/form.html",
-        context={"application": None, "values": {}, "warning": None, "duplicate": None},
+        context={
+            "application": None,
+            "values": {},
+            "warning": None,
+            "duplicate": None,
+            "review": None,
+        },
     )
 
 
@@ -115,14 +167,16 @@ async def application_preview_url(request: Request, session: Session = Depends(g
     job_url = str(form.get("job_url", "")).strip()
     result = await extract_job(job_url)
     duplicate = find_duplicate(session, job_url)
+    values = result.to_dict()
     return templates.TemplateResponse(
         request=request,
         name="applications/form.html",
         context={
             "application": None,
-            "values": result.to_dict(),
+            "values": values,
             "warning": result.warning,
             "duplicate": duplicate,
+            "review": _extraction_review(values),
         },
     )
 
@@ -130,6 +184,20 @@ async def application_preview_url(request: Request, session: Session = Depends(g
 @router.post("/applications", name="application_create")
 async def application_create(request: Request, session: Session = Depends(get_session)):
     form = await request.form()
+    missing = _missing_required_job_fields(form)
+    if missing:
+        return templates.TemplateResponse(
+            request=request,
+            name="applications/form.html",
+            status_code=422,
+            context={
+                "application": None,
+                "values": dict(form),
+                "warning": f"Complete the required fields: {', '.join(missing)}.",
+                "duplicate": None,
+                "review": None,
+            },
+        )
     duplicate = find_duplicate(session, form.get("job_url"))
     if duplicate:
         return RedirectResponse(f"/applications/{duplicate.id}?duplicate=1", status_code=303)
@@ -160,7 +228,13 @@ def application_edit(application_id: int, request: Request, session: Session = D
     return templates.TemplateResponse(
         request=request,
         name="applications/form.html",
-        context={"application": application, "values": {}, "warning": None, "duplicate": None},
+        context={
+            "application": application,
+            "values": {},
+            "warning": None,
+            "duplicate": None,
+            "review": None,
+        },
     )
 
 
@@ -168,6 +242,20 @@ def application_edit(application_id: int, request: Request, session: Session = D
 async def application_update(application_id: int, request: Request, session: Session = Depends(get_session)):
     application = _get_application(session, application_id)
     form = await request.form()
+    missing = _missing_required_job_fields(form)
+    if missing:
+        return templates.TemplateResponse(
+            request=request,
+            name="applications/form.html",
+            status_code=422,
+            context={
+                "application": application,
+                "values": dict(form),
+                "warning": f"Complete the required fields: {', '.join(missing)}.",
+                "duplicate": None,
+                "review": None,
+            },
+        )
     duplicate = find_duplicate(session, form.get("job_url"))
     if duplicate and duplicate.id != application.id:
         return templates.TemplateResponse(
@@ -179,6 +267,7 @@ async def application_update(application_id: int, request: Request, session: Ses
                 "values": dict(form),
                 "warning": "That job URL already belongs to another application.",
                 "duplicate": duplicate,
+                "review": None,
             },
         )
     apply_application_form(session, application, form)
@@ -200,9 +289,24 @@ async def application_quick_status(
         form.get("pipeline_stage"),
     )
     session.commit()
-    return_to = str(form.get("return_to", f"/applications/{application_id}"))
-    if not return_to.startswith("/") or return_to.startswith("//"):
-        return_to = f"/applications/{application_id}"
+    return_to = _safe_return_to(
+        form.get("return_to"), f"/applications/{application_id}"
+    )
+    return RedirectResponse(return_to, status_code=303)
+
+
+@router.post("/applications/{application_id}/quick-action")
+async def application_quick_action(
+    application_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    application = _get_application(session, application_id)
+    form = await request.form()
+    apply_quick_action(session, application, form.get("action"))
+    return_to = _safe_return_to(
+        form.get("return_to"), f"/applications/{application_id}"
+    )
     return RedirectResponse(return_to, status_code=303)
 
 
@@ -239,6 +343,18 @@ async def activity_create(
                     if application.status == ApplicationStatus.INTERVIEW.value
                     else None
                 ),
+                scheduled_at=(
+                    parse_datetime(form.get("scheduled_at"))
+                    if str(form.get("scheduled_at", "")).strip()
+                    else None
+                ),
+                contact=str(form.get("contact", "")).strip() or None,
+                meeting_url=str(form.get("meeting_url", "")).strip() or None,
+                interview_format=(
+                    str(form.get("interview_format"))
+                    if str(form.get("interview_format")) in INTERVIEW_FORMATS
+                    else None
+                ),
                 needs_action=form.get("needs_action") == "on",
             )
         )
@@ -246,14 +362,62 @@ async def activity_create(
     return RedirectResponse(f"/applications/{application_id}#activity", status_code=303)
 
 
+@router.post("/applications/{application_id}/interviews")
+async def interview_schedule(
+    application_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    application = _get_application(session, application_id)
+    form = await request.form()
+    scheduled_value = str(form.get("scheduled_at", "")).strip()
+    if scheduled_value:
+        scheduled_at = parse_datetime(scheduled_value)
+        change_application_status(
+            session,
+            application,
+            ApplicationStatus.INTERVIEW.value,
+            form.get("pipeline_stage"),
+        )
+        application.interview_date = scheduled_at.date()
+        application.next_action = f"Prepare for {application.pipeline_stage.lower()}"
+        interview_format = str(form.get("interview_format", ""))
+        session.add(
+            ApplicationActivity(
+                application=application,
+                activity_type="Interview",
+                direction="Internal",
+                summary=f"{application.pipeline_stage} scheduled",
+                notes=str(form.get("notes", "")).strip() or None,
+                interview_stage=application.pipeline_stage,
+                scheduled_at=scheduled_at,
+                contact=str(form.get("contact", "")).strip() or None,
+                meeting_url=str(form.get("meeting_url", "")).strip() or None,
+                interview_format=(
+                    interview_format if interview_format in INTERVIEW_FORMATS else None
+                ),
+            )
+        )
+        session.commit()
+    return RedirectResponse(f"/applications/{application_id}#interviews", status_code=303)
+
+
 @router.post("/activities/{activity_id}/toggle-action")
-def activity_toggle_action(activity_id: int, session: Session = Depends(get_session)):
+async def activity_toggle_action(
+    activity_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+):
     activity = session.get(ApplicationActivity, activity_id)
     if activity is None:
         raise HTTPException(status_code=404, detail="Activity not found")
     activity.action_completed = not activity.action_completed
     session.commit()
-    return RedirectResponse(f"/applications/{activity.application_id}#activity", status_code=303)
+    form = await request.form()
+    return_to = _safe_return_to(
+        form.get("return_to"), f"/applications/{activity.application_id}#activity"
+    )
+    return RedirectResponse(return_to, status_code=303)
 
 
 @router.post("/applications/{application_id}/requirements")

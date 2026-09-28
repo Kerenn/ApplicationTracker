@@ -13,6 +13,14 @@
   <div><span>Status</span><strong>{{ application.status }}</strong></div><div><span>Stage</span><strong>{{ application.pipeline_stage or application.status }}</strong></div><div><span>Priority</span><strong>{{ application.priority }}</strong></div><div><span>Fit</span><strong>{{ application.fit_score if application.fit_score is not none else "—" }}{% if application.fit_score is not none %} / 10{% endif %}</strong></div><div><span>Date found</span><strong>{{ application.date_found }}</strong></div>
 </div>
 
+<div class="quick-action-bar" aria-label="Application quick actions">
+  <span>Quick actions</span>
+  {% if application.status not in ('Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn') %}<form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="applied_today"><button>Applied today</button></form>{% endif %}
+  {% if application.status not in ('Rejected', 'Withdrawn') %}<form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="reply_received"><button>Reply received</button></form>
+  <form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="follow_up_week"><button>Follow up +7d</button></form>
+  <form method="post" action="/applications/{{ application.id }}/quick-action" data-confirm="Mark this application as rejected?"><input type="hidden" name="action" value="rejected"><button class="danger-button">Rejected</button></form>{% endif %}
+</div>
+
 {% if application.is_ready_to_apply %}<div class="ready-banner">Ready to apply</div>{% endif %}
 
 <section class="detail-grid">
@@ -23,15 +31,27 @@
       <label>Direction<select name="direction">{% for item in activity_directions %}<option {% if item == 'Incoming' %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
       <label class="wide">Summary<input name="summary" required placeholder="Recruiter invited me to a technical interview"></label>
       <label>When<input name="occurred_at" type="datetime-local"></label>
-      <label>Update status<select name="status">{% for item in statuses %}<option {% if item == application.status %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-      <label>Update stage<select name="pipeline_stage"><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}<optgroup label="{{ status }}">{% for stage in stages %}<option {% if stage == application.pipeline_stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
+      <label>Update status<select name="status" data-status-select data-stage-target="activity-stage">{% for item in statuses %}<option {% if item == application.status %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+      <label>Update stage<select id="activity-stage" name="pipeline_stage" data-stage-select><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}{% for stage in stages %}<option data-status="{{ status }}" {% if stage == application.pipeline_stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}{% endfor %}</select></label>
       <label>Follow-up date<input name="follow_up_date" type="date"></label>
       <label class="wide">Next action<input name="next_action" value="{{ application.next_action or '' }}"></label>
       <label class="wide">Notes<textarea name="notes"></textarea></label>
       <label class="checkbox"><input type="checkbox" name="needs_action"> This needs action</label>
       <button>Save activity</button>
     </form></details>
-    {% if application.activities %}<div class="activity-list">{% for activity in application.activities %}<article class="activity-item {{ 'needs-action' if activity.needs_action and not activity.action_completed }}"><div class="activity-icon">{{ {'Email':'✉', 'Call':'☎', 'Interview':'◎', 'Follow-up':'↗', 'Note':'•'}.get(activity.activity_type, '•') }}</div><div><div class="activity-title"><strong>{{ activity.summary }}</strong><span>{{ activity.direction }} {{ activity.activity_type }}</span></div><time>{{ activity.occurred_at.strftime('%d %b %Y %H:%M') }}</time>{% if activity.interview_stage %}<small>Stage: {{ activity.interview_stage }}</small>{% endif %}{% if activity.notes %}<p>{{ activity.notes }}</p>{% endif %}</div>{% if activity.needs_action %}<form method="post" action="/activities/{{ activity.id }}/toggle-action"><button class="text-button {{ 'done' if activity.action_completed }}">{{ 'Reopen' if activity.action_completed else 'Mark done' }}</button></form>{% endif %}</article>{% endfor %}</div>{% else %}<p class="quiet">No activity yet. Log an incoming reply or interview invitation here.</p>{% endif %}
+    {% if application.activities %}<div class="activity-list">{% for activity in application.activities %}<article class="activity-item {{ 'needs-action' if activity.needs_action and not activity.action_completed }}"><div class="activity-icon">{{ {'Email':'✉', 'Call':'☎', 'Interview':'◎', 'Follow-up':'↗', 'Note':'•'}.get(activity.activity_type, '•') }}</div><div><div class="activity-title"><strong>{{ activity.summary }}</strong><span>{{ activity.direction }} {{ activity.activity_type }}</span></div><time>{{ activity.occurred_at.strftime('%d %b %Y %H:%M') }}</time>{% if activity.interview_stage %}<small>Stage: {{ activity.interview_stage }}</small>{% endif %}{% if activity.scheduled_at %}<small>Scheduled: {{ activity.scheduled_at.strftime('%d %b %Y at %H:%M') }}{% if activity.interview_format %} · {{ activity.interview_format }}{% endif %}{% if activity.contact %} · {{ activity.contact }}{% endif %}</small>{% endif %}{% if activity.meeting_url %}<a class="meeting-link" href="{{ activity.meeting_url }}" target="_blank" rel="noreferrer">Open meeting link</a>{% endif %}{% if activity.notes %}<p>{{ activity.notes }}</p>{% endif %}</div>{% if activity.needs_action %}<form method="post" action="/activities/{{ activity.id }}/toggle-action"><button class="text-button {{ 'done' if activity.action_completed }}">{{ 'Reopen' if activity.action_completed else 'Mark done' }}</button></form>{% endif %}</article>{% endfor %}</div>{% else %}<p class="quiet">No activity yet. Log an incoming reply or interview invitation here.</p>{% endif %}
+  </div>
+
+  <div class="panel" id="interviews"><div class="section-heading"><div><p class="eyebrow">Interview plan</p><h2>Schedule an interview</h2></div></div>
+    <form class="mini-form" method="post" action="/applications/{{ application.id }}/interviews">
+      <label>Stage<select name="pipeline_stage">{% for stage in pipeline_stages['Interview'] %}<option {% if stage == application.pipeline_stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}</select></label>
+      <label>Date and time<input name="scheduled_at" type="datetime-local" required></label>
+      <label>Format<select name="interview_format">{% for item in interview_formats %}<option>{{ item }}</option>{% endfor %}</select></label>
+      <label>Interviewer / contact<input name="contact" value="{{ application.contact or '' }}"></label>
+      <label class="wide">Meeting or location URL<input name="meeting_url" type="url" placeholder="https://teams.microsoft.com/..."></label>
+      <label class="wide">Preparation notes<textarea name="notes" placeholder="Topics, people, documents, questions to prepare"></textarea></label>
+      <button>Schedule interview</button>
+    </form>
   </div>
 
   <div class="panel" id="requirements"><div class="section-heading"><div><p class="eyebrow">Checklist</p><h2>Application requirements</h2></div></div>
@@ -48,7 +68,7 @@
 </div>
 
 <aside class="side-column">
-  <div class="panel"><h2>Move application</h2><form class="move-panel" method="post" action="/applications/{{ application.id }}/quick-status"><input type="hidden" name="return_to" value="/applications/{{ application.id }}"><label>Status<select name="status">{% for item in statuses %}<option {% if item == application.status %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label><label>Stage<select name="pipeline_stage"><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}<optgroup label="{{ status }}">{% for stage in stages %}<option {% if stage == application.pipeline_stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}</optgroup>{% endfor %}</select></label><button>Update status</button></form></div>
+  <div class="panel"><h2>Move application</h2><form class="move-panel" method="post" action="/applications/{{ application.id }}/quick-status"><input type="hidden" name="return_to" value="/applications/{{ application.id }}"><label>Status<select name="status" data-status-select data-stage-target="move-stage">{% for item in statuses %}<option {% if item == application.status %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label><label>Stage<select id="move-stage" name="pipeline_stage" data-stage-select><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}{% for stage in stages %}<option data-status="{{ status }}" {% if stage == application.pipeline_stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}{% endfor %}</select></label><button>Update status</button></form></div>
   <div class="panel"><h2>Salary</h2><dl class="details"><dt>Expected</dt><dd>{{ application.salary_expectation or "—" }}</dd><dt>Notes</dt><dd>{{ application.salary_notes or "—" }}</dd></dl></div>
   <div class="panel"><h2>Dates</h2><dl class="details"><dt>Applied</dt><dd>{{ application.applied_date or "—" }}</dd><dt>Deadline</dt><dd>{{ application.application_deadline or "—" }}</dd><dt>Follow-up</dt><dd>{{ application.follow_up_date or "—" }}</dd><dt>Interview</dt><dd>{{ application.interview_date or "—" }}</dd></dl></div>
   <div class="panel"><h2>Status history</h2><ol class="timeline">{% for event in application.status_history %}<li><strong>{{ event.to_status }}</strong><time>{{ event.changed_at.strftime('%d %b %Y %H:%M') }}</time>{% if event.from_status %}<small>from {{ event.from_status }}</small>{% endif %}</li>{% endfor %}</ol></div>

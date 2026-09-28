@@ -7,6 +7,7 @@ from app.constants import (
     ACTIVITY_DIRECTIONS,
     ACTIVITY_TYPES,
     DOCUMENT_TYPES,
+    INTERVIEW_FORMATS,
     PrimaryTrack,
     Priority,
     PIPELINE_STAGES,
@@ -27,4 +28,5 @@ templates.env.globals.update(
     pipeline_stages=PIPELINE_STAGES,
     activity_types=ACTIVITY_TYPES,
     activity_directions=ACTIVITY_DIRECTIONS,
+    interview_formats=INTERVIEW_FORMATS,
 )

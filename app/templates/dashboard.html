@@ -27,10 +27,10 @@
         <span>{{ label }}</span><strong>{{ status_counts.get(label, 0) }}</strong>
       </a>
     {% endfor %}
-    <a class="kpi-card due" href="/applications?sort=applied">
+    <a class="kpi-card due" href="/actions#follow-ups">
       <span>Follow-ups due</span><strong>{{ follow_ups_due }}</strong>
     </a>
-    <a class="kpi-card attention" href="/board">
+    <a class="kpi-card attention" href="/actions#responses">
       <span>Replies needing action</span><strong>{{ replies_needing_action }}</strong>
     </a>
   </div>

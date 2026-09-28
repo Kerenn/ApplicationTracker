@@ -9,11 +9,12 @@
 
 {% if warning %}<div class="alert">{{ warning }}</div>{% endif %}
 {% if duplicate %}<div class="alert warning">This URL is already saved for <a href="/applications/{{ duplicate.id }}">{{ duplicate.company }} — {{ duplicate.role }}</a>.</div>{% endif %}
+{% if review %}<section class="extraction-review"><div><p class="eyebrow">URL review</p><h2>Check the extracted job details</h2><p>Company and role always need your confirmation. Missing fields stay editable below.</p></div><div class="review-grid">{% for item in review %}<div class="review-item {{ 'missing' if item.missing else 'filled' }}"><span>{{ item.label }}</span><strong>{{ 'Missing' if item.missing else item.value }}</strong>{% if item.confirm %}<small>Confirm this value</small>{% elif not item.missing %}<small>Found on the page</small>{% endif %}</div>{% endfor %}</div></section>{% endif %}
 
 <form class="application-form" method="post" action="{{ '/applications/' ~ application.id if editing else '/applications' }}">
   <fieldset><legend>Job</legend><div class="form-grid">
-    <label>Company<input name="company" value="{{ current('company') }}"></label>
-    <label class="wide">Role<input name="role" value="{{ current('role') }}"></label>
+    <label>Company<input name="company" required value="{{ current('company') }}"></label>
+    <label class="wide">Role<input name="role" required value="{{ current('role') }}"></label>
     <label class="wide">Job URL<input name="job_url" type="url" value="{{ current('job_url') }}"></label>
     <label class="wide">Application URL<input name="application_url" type="url" value="{{ current('application_url') }}"></label>
     <label>Source<input name="source" value="{{ current('source') }}"></label>
@@ -25,8 +26,8 @@
 
   <fieldset><legend>Tracking</legend><div class="form-grid">
     <label>Primary track<select name="primary_track">{% for item in tracks %}<option {% if current('primary_track', 'Other') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-    <label>Status<select name="status">{% for item in statuses %}<option {% if current('status', 'Saved') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-    <label>Stage<select name="pipeline_stage"><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}<optgroup label="{{ status }}">{% for stage in stages %}<option {% if current('pipeline_stage') == stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
+    <label>Status<select name="status" data-status-select data-stage-target="application-stage">{% for item in statuses %}<option {% if current('status', 'Saved') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <label>Stage<select id="application-stage" name="pipeline_stage" data-stage-select><option value="">Use status default</option>{% for status, stages in pipeline_stages.items() %}{% for stage in stages %}<option data-status="{{ status }}" {% if current('pipeline_stage') == stage %}selected{% endif %}>{{ stage }}</option>{% endfor %}{% endfor %}</select></label>
     <label>Priority<select name="priority">{% for item in priorities %}<option {% if current('priority', 'Medium') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
     <label>Fit /10<input name="fit_score" type="number" min="0" max="10" step="0.1" value="{{ current('fit_score') }}"></label>
     <label class="wide">Tags<input name="tags" value="{% if values.get('tags') %}{{ values.get('tags') }}{% elif editing %}{{ application.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="Embedded, Electronics, HW/SW Co-Design"></label>

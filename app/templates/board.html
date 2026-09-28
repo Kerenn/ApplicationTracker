@@ -1,21 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Board · Job Tracker{% endblock %}
 {% block content %}
-<div class="page-title"><div><p class="eyebrow">Move work forward</p><h1>Application board</h1><p>Use the quick selector on a card for broad moves. Open a card to record replies and exact stages.</p></div><a class="button" href="/applications/new">Add application</a></div>
+<div class="page-title"><div><p class="eyebrow">Move work forward</p><h1>Application board</h1><p>Drag cards between columns, use a quick action, or open a card for exact stages and activity.</p></div><span class="page-actions"><a class="button secondary" href="/actions">Action Inbox</a><a class="button" href="/applications/new">Add application</a></span></div>
 
 <div class="board" aria-label="Application pipeline">
   {% for status in active_statuses %}
-  <section class="board-column">
+  <section class="board-column" data-board-status="{{ status }}">
     <header><h2>{{ status }}</h2><span>{{ columns[status]|length }}</span></header>
     <div class="board-cards">
       {% for application in columns[status] %}
-      <article class="board-card {{ 'has-attention' if application.attention_count }}">
+      <article class="board-card {{ 'has-attention' if application.attention_count }}" draggable="true" data-application-id="{{ application.id }}">
         <div class="card-top"><span class="priority priority-{{ application.priority|lower }}">{{ application.priority }}</span>{% if application.attention_count %}<span class="attention-badge">{{ application.attention_count }} action</span>{% endif %}</div>
         <a href="/applications/{{ application.id }}"><strong>{{ application.company or "Company pending" }}</strong><span>{{ application.role or "Role pending" }}</span></a>
         <div class="stage-chip">{{ application.pipeline_stage or status }}</div>
         {% if application.next_action %}<p><small>Next</small>{{ application.next_action }}</p>{% endif %}
         {% if application.follow_up_date %}<p class="due-line"><small>Follow-up</small>{{ application.follow_up_date }}</p>{% endif %}
         <form class="quick-move" method="post" action="/applications/{{ application.id }}/quick-status"><input type="hidden" name="return_to" value="/board"><select name="status" aria-label="Move {{ application.company }}"><option selected>{{ application.status }}</option>{% for item in statuses %}{% if item != application.status %}<option>{{ item }}</option>{% endif %}{% endfor %}</select><button>Move</button></form>
+        <details class="quick-actions"><summary>Quick actions</summary><div>
+          {% if application.status not in ('Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn') %}<form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="applied_today"><input type="hidden" name="return_to" value="/board"><button>Applied today</button></form>{% endif %}
+          {% if application.status not in ('Rejected', 'Withdrawn') %}<form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="reply_received"><input type="hidden" name="return_to" value="/board"><button>Reply received</button></form>
+          <form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="follow_up_week"><input type="hidden" name="return_to" value="/board"><button>Follow up +7d</button></form>
+          <form method="post" action="/applications/{{ application.id }}/quick-action" data-confirm="Mark this application as rejected?"><input type="hidden" name="action" value="rejected"><input type="hidden" name="return_to" value="/board"><button class="danger-button">Rejected</button></form>{% endif %}
+        </div></details>
         <div class="card-links"><a href="/applications/{{ application.id }}#activity">Log reply</a><a href="/applications/{{ application.id }}">Open</a></div>
       </article>
       {% else %}<div class="board-empty">No applications</div>{% endfor %}

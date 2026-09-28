@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Action Inbox · Job Tracker{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><p class="eyebrow">Today and next</p><h1>Action Inbox</h1><p>One place for replies, overdue follow-ups, interviews, and applications without a next step.</p></div>
+  <a class="button secondary" href="/board">Open board</a>
+</div>
+
+<div class="inbox-grid">
+  <section class="panel inbox-section" id="responses">
+    <div class="section-heading"><div><p class="eyebrow">Communication</p><h2>Needs a response</h2></div><span class="count-badge">{{ needs_response|length }}</span></div>
+    {% for activity in needs_response %}
+      <article class="inbox-item urgent">
+        <div><a href="/applications/{{ activity.application.id }}#activity"><strong>{{ activity.application.company }}</strong><span>{{ activity.application.role }}</span></a><p>{{ activity.summary }}</p><small>{{ activity.occurred_at.strftime('%d %b %Y %H:%M') }} · {{ activity.direction }} {{ activity.activity_type }}</small></div>
+        <form method="post" action="/activities/{{ activity.id }}/toggle-action"><input type="hidden" name="return_to" value="/actions#responses"><button>Mark done</button></form>
+      </article>
+    {% else %}<p class="empty-note">Nothing is waiting for your reply.</p>{% endfor %}
+  </section>
+
+  <section class="panel inbox-section" id="follow-ups">
+    <div class="section-heading"><div><p class="eyebrow">Deadlines</p><h2>Follow-ups due</h2></div><span class="count-badge">{{ due_follow_ups|length }}</span></div>
+    {% for application in due_follow_ups %}
+      <article class="inbox-item {{ 'urgent' if application.follow_up_date < today }}">
+        <div><a href="/applications/{{ application.id }}"><strong>{{ application.company }}</strong><span>{{ application.role }}</span></a><p>{{ application.next_action or 'Follow up with employer' }}</p><small>{{ 'Overdue' if application.follow_up_date < today else 'Due today' }} · {{ application.follow_up_date }}</small></div>
+        <form method="post" action="/applications/{{ application.id }}/quick-action"><input type="hidden" name="action" value="follow_up_done"><input type="hidden" name="return_to" value="/actions#follow-ups"><button>Sent</button></form>
+      </article>
+    {% else %}<p class="empty-note">No follow-ups are due today.</p>{% endfor %}
+  </section>
+
+  <section class="panel inbox-section" id="interviews">
+    <div class="section-heading"><div><p class="eyebrow">Calendar</p><h2>Upcoming interviews</h2></div><span class="count-badge">{{ upcoming_interviews|length }}</span></div>
+    {% for interview in upcoming_interviews %}
+      <article class="inbox-item interview-item">
+        <div><a href="/applications/{{ interview.application.id }}#interviews"><strong>{{ interview.application.company }}</strong><span>{{ interview.application.role }}</span></a><p>{{ interview.interview_stage or 'Interview' }} · {{ interview.scheduled_at.strftime('%d %b %Y at %H:%M') }}</p><small>{% if interview.interview_format %}{{ interview.interview_format }}{% endif %}{% if interview.contact %} · {{ interview.contact }}{% endif %}</small>{% if interview.meeting_url %}<a class="meeting-link" href="{{ interview.meeting_url }}" target="_blank" rel="noreferrer">Open meeting link</a>{% endif %}</div>
+      </article>
+    {% else %}<p class="empty-note">No interviews are scheduled.</p>{% endfor %}
+  </section>
+
+  <section class="panel inbox-section" id="missing-actions">
+    <div class="section-heading"><div><p class="eyebrow">Pipeline hygiene</p><h2>Missing a next action</h2></div><span class="count-badge">{{ missing_next_action|length }}</span></div>
+    {% for application in missing_next_action %}
+      <article class="inbox-item">
+        <div><a href="/applications/{{ application.id }}"><strong>{{ application.company or 'Company pending' }}</strong><span>{{ application.role or 'Role pending' }}</span></a><p>{{ application.status }} · {{ application.pipeline_stage or application.status }}</p></div>
+        <a class="button secondary compact" href="/applications/{{ application.id }}#activity">Add action</a>
+      </article>
+    {% else %}<p class="empty-note">Every active application has a next action.</p>{% endfor %}
+  </section>
+</div>
+{% endblock %}

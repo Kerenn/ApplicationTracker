@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -14,7 +14,7 @@ from app.constants import (
     Priority,
     enum_values,
 )
-from app.models import Application, StatusHistory, Tag
+from app.models import Application, ApplicationActivity, StatusHistory, Tag
 
 
 TRACKS = enum_values(PrimaryTrack)
@@ -140,21 +140,35 @@ def apply_application_form(
     track = clean(form.get("primary_track"))
     application.primary_track = track if track in TRACKS else PrimaryTrack.OTHER.value
     status = clean(form.get("status"))
-    application.status = status if status in STATUSES else ApplicationStatus.SAVED.value
-    application.pipeline_stage = valid_stage(
-        application.status, form.get("pipeline_stage")
-    )
+    status = status if status in STATUSES else ApplicationStatus.SAVED.value
+    applied_date = parse_date(form.get("applied_date"))
+    interview_date = parse_date(form.get("interview_date"))
+    if interview_date and status in {
+        ApplicationStatus.SAVED.value,
+        ApplicationStatus.PREPARING.value,
+        ApplicationStatus.APPLYING.value,
+        ApplicationStatus.APPLIED.value,
+    }:
+        status = ApplicationStatus.INTERVIEW.value
+    elif applied_date and status in {
+        ApplicationStatus.SAVED.value,
+        ApplicationStatus.PREPARING.value,
+        ApplicationStatus.APPLYING.value,
+    }:
+        status = ApplicationStatus.APPLIED.value
+    application.status = status
+    application.pipeline_stage = valid_stage(status, form.get("pipeline_stage"))
     priority = clean(form.get("priority"))
     application.priority = priority if priority in PRIORITIES else Priority.MEDIUM.value
     application.fit_score = parse_score(form.get("fit_score"))
 
     application.date_found = parse_date(form.get("date_found")) or date.today()
-    application.applied_date = parse_date(form.get("applied_date"))
+    application.applied_date = applied_date
     if application.status == ApplicationStatus.APPLIED.value and application.applied_date is None:
         application.applied_date = date.today()
     application.application_deadline = parse_date(form.get("application_deadline"))
     application.follow_up_date = parse_date(form.get("follow_up_date"))
-    application.interview_date = parse_date(form.get("interview_date"))
+    application.interview_date = interview_date
 
     application.salary_expectation = clean(form.get("salary_expectation"))
     application.salary_notes = clean(form.get("salary_notes"))
@@ -200,3 +214,90 @@ def change_application_status(
                 to_status=new_status,
             )
         )
+
+
+def apply_quick_action(
+    session: Session,
+    application: Application,
+    action: object | None,
+) -> bool:
+    """Apply a reversible workflow shortcut and record what happened."""
+    requested = clean(action)
+    today = date.today()
+
+    if requested == "applied_today":
+        change_application_status(
+            session, application, ApplicationStatus.APPLIED.value, "Submitted"
+        )
+        application.applied_date = today
+        application.follow_up_date = today + timedelta(days=7)
+        application.next_action = "Check for a response or follow up"
+        session.add(
+            ApplicationActivity(
+                application=application,
+                activity_type="Note",
+                direction="Outgoing",
+                summary="Application submitted",
+            )
+        )
+    elif requested == "reply_received":
+        new_status = (
+            ApplicationStatus.INTERVIEW.value
+            if application.status == ApplicationStatus.INTERVIEW.value
+            else ApplicationStatus.APPLIED.value
+        )
+        new_stage = (
+            application.pipeline_stage
+            if new_status == ApplicationStatus.INTERVIEW.value
+            else "Recruiter replied"
+        )
+        change_application_status(session, application, new_status, new_stage)
+        application.next_action = "Review and reply to recruiter"
+        application.follow_up_date = today
+        session.add(
+            ApplicationActivity(
+                application=application,
+                activity_type="Email",
+                direction="Incoming",
+                summary="Recruiter reply received",
+                interview_stage=(
+                    application.pipeline_stage
+                    if application.status == ApplicationStatus.INTERVIEW.value
+                    else None
+                ),
+                needs_action=True,
+            )
+        )
+    elif requested == "follow_up_week":
+        application.follow_up_date = today + timedelta(days=7)
+        application.next_action = "Follow up with employer"
+    elif requested == "follow_up_done":
+        application.follow_up_date = None
+        application.next_action = "Wait for employer response"
+        session.add(
+            ApplicationActivity(
+                application=application,
+                activity_type="Follow-up",
+                direction="Outgoing",
+                summary="Follow-up sent",
+            )
+        )
+    elif requested == "rejected":
+        change_application_status(
+            session, application, ApplicationStatus.REJECTED.value, "Rejected"
+        )
+        application.follow_up_date = None
+        application.next_action = None
+        session.add(
+            ApplicationActivity(
+                application=application,
+                activity_type="Note",
+                direction="Incoming",
+                summary="Application marked as rejected",
+            )
+        )
+    else:
+        return False
+
+    session.commit()
+    return True

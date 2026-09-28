@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-from app.routes import applications, board, dashboard, exports, imports
+from app.routes import actions, applications, board, dashboard, exports, imports
 
 
 @asynccontextmanager
@@ -21,6 +21,7 @@ app.mount(
     name="static",
 )
 app.include_router(dashboard.router)
+app.include_router(actions.router)
 app.include_router(applications.router)
 app.include_router(board.router)
 app.include_router(exports.router)

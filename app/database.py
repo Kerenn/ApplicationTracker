@@ -66,6 +66,32 @@ def _apply_additive_migrations() -> None:
                 "ON applications (pipeline_stage)"
             )
         )
+        inspector = inspect(connection)
+        if "application_activities" in inspector.get_table_names():
+            activity_columns = {
+                column["name"]
+                for column in inspector.get_columns("application_activities")
+            }
+            activity_migrations = {
+                "scheduled_at": "DATETIME",
+                "contact": "VARCHAR(200)",
+                "meeting_url": "TEXT",
+                "interview_format": "VARCHAR(80)",
+            }
+            for name, column_type in activity_migrations.items():
+                if name not in activity_columns:
+                    connection.execute(
+                        text(
+                            f"ALTER TABLE application_activities "
+                            f"ADD COLUMN {name} {column_type}"
+                        )
+                    )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_application_activities_scheduled_at "
+                    "ON application_activities (scheduled_at)"
+                )
+            )
 
 
 def init_db() -> None:

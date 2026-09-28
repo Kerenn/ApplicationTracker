@@ -61,6 +61,8 @@ PIPELINE_STAGES = {
 ACTIVITY_TYPES = ("Email", "Call", "Interview", "Follow-up", "Note")
 ACTIVITY_DIRECTIONS = ("Incoming", "Outgoing", "Internal")
 
+INTERVIEW_FORMATS = ("Video", "Phone", "On-site", "Take-home", "Other")
+
 
 WORK_MODES = ("On-site", "Hybrid", "Remote", "Not stated")
 
