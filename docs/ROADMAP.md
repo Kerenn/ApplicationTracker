@@ -22,9 +22,9 @@ Still worth adding after the profile work:
 
 ## Phase 3 — Profile and application form pack
 
-### 3A. Reusable local profile
+### 3A. Reusable local profile — foundation implemented
 
-Create a dedicated Profile page with structured sections instead of one large notes field:
+The dedicated Profile page now stores structured sections instead of one large notes field:
 
 - Identity and contact: preferred name, legal name, email, phone, address, portfolio, LinkedIn, GitHub.
 - Work eligibility: citizenship/work authorization, sponsorship requirement, notice period, willingness to relocate and travel.
@@ -33,9 +33,9 @@ Create a dedicated Profile page with structured sections instead of one large no
 - Projects and publications: description, impact, links, technologies, dates.
 - Skills, tools, languages, certifications, and driving licence.
 - Reusable answers: salary, start date, motivation, leadership, conflict, strengths, demographic "prefer not to say" choices, and other recurring questions.
-- Document catalogue: CV and cover-letter versions plus local file references. Files themselves remain in the user's chosen folders.
+- A document catalogue for CV and cover-letter versions plus local file references remains planned. Files themselves will remain in the user's chosen folders.
 
-Each section gets a completeness indicator. Resume import must show a preview and differences before it changes the profile.
+Each section has a completeness indicator. Profile data is included in Excel exports. Resume import remains a later addition and must show a preview and differences before it changes the profile.
 
 Passwords, one-time codes, security answers, passport scans, bank details, and portal credentials must never be stored in this tracker.
 

@@ -195,3 +195,142 @@ class ApplicationActivity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     application: Mapped[Application] = relationship(back_populates="activities")
+
+
+class PersonalProfile(Base):
+    __tablename__ = "personal_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    preferred_name: Mapped[str | None] = mapped_column(String(160))
+    legal_name: Mapped[str | None] = mapped_column(String(160))
+    email: Mapped[str | None] = mapped_column(String(240))
+    phone: Mapped[str | None] = mapped_column(String(80))
+    address_line_1: Mapped[str | None] = mapped_column(String(240))
+    address_line_2: Mapped[str | None] = mapped_column(String(240))
+    postal_code: Mapped[str | None] = mapped_column(String(40))
+    city: Mapped[str | None] = mapped_column(String(120))
+    country: Mapped[str | None] = mapped_column(String(120))
+
+    linkedin_url: Mapped[str | None] = mapped_column(Text)
+    github_url: Mapped[str | None] = mapped_column(Text)
+    portfolio_url: Mapped[str | None] = mapped_column(Text)
+    professional_summary: Mapped[str | None] = mapped_column(Text)
+
+    work_authorization: Mapped[str | None] = mapped_column(String(240))
+    sponsorship_required: Mapped[bool | None] = mapped_column(Boolean)
+    notice_period: Mapped[str | None] = mapped_column(String(120))
+    willing_to_relocate: Mapped[str | None] = mapped_column(String(120))
+    willing_to_travel: Mapped[str | None] = mapped_column(String(120))
+    driving_licence: Mapped[str | None] = mapped_column(String(120))
+
+    skills: Mapped[str | None] = mapped_column(Text)
+    languages: Mapped[str | None] = mapped_column(Text)
+    certifications: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    experiences: Mapped[list[ProfileExperience]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        order_by="ProfileExperience.sort_order, ProfileExperience.id.desc()",
+    )
+    educations: Mapped[list[ProfileEducation]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        order_by="ProfileEducation.sort_order, ProfileEducation.id.desc()",
+    )
+    projects: Mapped[list[ProfileProject]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        order_by="ProfileProject.sort_order, ProfileProject.id.desc()",
+    )
+    answers: Mapped[list[ProfileAnswer]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        order_by="ProfileAnswer.category, ProfileAnswer.question",
+    )
+
+
+class ProfileExperience(Base):
+    __tablename__ = "profile_experiences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("personal_profiles.id", ondelete="CASCADE"), index=True
+    )
+    employer: Mapped[str] = mapped_column(String(200))
+    title: Mapped[str] = mapped_column(String(240))
+    location: Mapped[str | None] = mapped_column(String(200))
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    current: Mapped[bool] = mapped_column(Boolean, default=False)
+    responsibilities: Mapped[str | None] = mapped_column(Text)
+    achievements: Mapped[str | None] = mapped_column(Text)
+    technologies: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    profile: Mapped[PersonalProfile] = relationship(back_populates="experiences")
+
+
+class ProfileEducation(Base):
+    __tablename__ = "profile_educations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("personal_profiles.id", ondelete="CASCADE"), index=True
+    )
+    institution: Mapped[str] = mapped_column(String(240))
+    degree: Mapped[str] = mapped_column(String(200))
+    field_of_study: Mapped[str | None] = mapped_column(String(240))
+    location: Mapped[str | None] = mapped_column(String(200))
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    grade: Mapped[str | None] = mapped_column(String(100))
+    notes: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    profile: Mapped[PersonalProfile] = relationship(back_populates="educations")
+
+
+class ProfileProject(Base):
+    __tablename__ = "profile_projects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("personal_profiles.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(240))
+    role: Mapped[str | None] = mapped_column(String(200))
+    project_url: Mapped[str | None] = mapped_column(Text)
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    description: Mapped[str | None] = mapped_column(Text)
+    impact: Mapped[str | None] = mapped_column(Text)
+    technologies: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    profile: Mapped[PersonalProfile] = relationship(back_populates="projects")
+
+
+class ProfileAnswer(Base):
+    __tablename__ = "profile_answers"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "question", name="unique_profile_answer_question"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("personal_profiles.id", ondelete="CASCADE"), index=True
+    )
+    category: Mapped[str] = mapped_column(String(100), default="Other")
+    question: Mapped[str] = mapped_column(String(300))
+    answer: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    profile: Mapped[PersonalProfile] = relationship(back_populates="answers")

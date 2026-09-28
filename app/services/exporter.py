@@ -9,7 +9,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Application
+from app.models import Application, PersonalProfile
 
 
 APPLICATION_HEADERS = [
@@ -208,6 +208,142 @@ def build_xlsx(session: Session) -> bytes:
                 ]
             )
     _style_sheet(activities)
+
+    profile = session.get(PersonalProfile, 1)
+    profile_sheet = workbook.create_sheet("Profile")
+    profile_sheet.append(["Field", "Value"])
+    profile_fields = [
+        ("Preferred name", "preferred_name"),
+        ("Legal name", "legal_name"),
+        ("Email", "email"),
+        ("Phone", "phone"),
+        ("Address line 1", "address_line_1"),
+        ("Address line 2", "address_line_2"),
+        ("Postal code", "postal_code"),
+        ("City", "city"),
+        ("Country", "country"),
+        ("LinkedIn URL", "linkedin_url"),
+        ("GitHub URL", "github_url"),
+        ("Portfolio URL", "portfolio_url"),
+        ("Professional summary", "professional_summary"),
+        ("Work authorization", "work_authorization"),
+        ("Sponsorship required", "sponsorship_required"),
+        ("Notice period", "notice_period"),
+        ("Willing to relocate", "willing_to_relocate"),
+        ("Willing to travel", "willing_to_travel"),
+        ("Driving licence", "driving_licence"),
+        ("Skills", "skills"),
+        ("Languages", "languages"),
+        ("Certifications", "certifications"),
+    ]
+    if profile:
+        for label, attribute in profile_fields:
+            profile_sheet.append([label, getattr(profile, attribute)])
+    _style_sheet(profile_sheet)
+
+    experiences = workbook.create_sheet("Profile Experience")
+    experiences.append(
+        [
+            "Employer",
+            "Title",
+            "Location",
+            "Start Date",
+            "End Date",
+            "Current",
+            "Responsibilities",
+            "Achievements",
+            "Technologies",
+        ]
+    )
+    if profile:
+        for item in profile.experiences:
+            experiences.append(
+                [
+                    item.employer,
+                    item.title,
+                    item.location,
+                    item.start_date,
+                    item.end_date,
+                    item.current,
+                    item.responsibilities,
+                    item.achievements,
+                    item.technologies,
+                ]
+            )
+    _style_sheet(experiences)
+
+    education = workbook.create_sheet("Profile Education")
+    education.append(
+        [
+            "Institution",
+            "Degree",
+            "Field of Study",
+            "Location",
+            "Start Date",
+            "End Date",
+            "Grade",
+            "Notes",
+        ]
+    )
+    if profile:
+        for item in profile.educations:
+            education.append(
+                [
+                    item.institution,
+                    item.degree,
+                    item.field_of_study,
+                    item.location,
+                    item.start_date,
+                    item.end_date,
+                    item.grade,
+                    item.notes,
+                ]
+            )
+    _style_sheet(education)
+
+    projects = workbook.create_sheet("Profile Projects")
+    projects.append(
+        [
+            "Name",
+            "Role",
+            "URL",
+            "Start Date",
+            "End Date",
+            "Description",
+            "Impact",
+            "Technologies",
+        ]
+    )
+    if profile:
+        for item in profile.projects:
+            projects.append(
+                [
+                    item.name,
+                    item.role,
+                    item.project_url,
+                    item.start_date,
+                    item.end_date,
+                    item.description,
+                    item.impact,
+                    item.technologies,
+                ]
+            )
+    _style_sheet(projects)
+
+    answers = workbook.create_sheet("Profile Answers")
+    answers.append(["Category", "Question", "Answer", "Notes", "Updated"])
+    if profile:
+        for item in profile.answers:
+            answers.append(
+                [
+                    item.category,
+                    item.question,
+                    item.answer,
+                    item.notes,
+                    _excel_value(item.updated_at),
+                ]
+            )
+    _style_sheet(answers)
 
     stream = BytesIO()
     workbook.save(stream)

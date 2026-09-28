@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Profile · Job Tracker{% endblock %}
+{% block content %}
+<section class="page-title profile-heading">
+  <div>
+    <p class="eyebrow">Reusable application information</p>
+    <h1>Personal profile</h1>
+    <p class="quiet">Maintain your facts once, then select the right parts for each application.</p>
+  </div>
+  <div class="completion-ring" aria-label="Profile {{ completion_percent }} percent complete">
+    <strong>{{ completion_percent }}%</strong>
+    <span>complete</span>
+  </div>
+</section>
+
+{% if saved %}<div class="alert">Saved locally.</div>{% endif %}
+
+<section class="profile-layout">
+  <aside class="panel profile-progress">
+    <h2>Profile readiness</h2>
+    <div class="progress-track"><span style="width: {{ completion_percent }}%"></span></div>
+    <ul class="completion-list">
+      {% for item in completion %}
+      <li class="{{ 'complete' if item.complete else '' }}">
+        <span aria-hidden="true">{{ '✓' if item.complete else '○' }}</span>{{ item.label }}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="privacy-note"><strong>Keep out:</strong> passwords, one-time codes, security answers, banking details, and identity-document scans.</p>
+  </aside>
+
+  <div class="profile-main">
+    <form method="post" action="/profile" class="application-form">
+      <fieldset>
+        <legend>Contact and identity</legend>
+        <div class="form-grid">
+          <label>Preferred name<input name="preferred_name" value="{{ profile.preferred_name or '' }}" autocomplete="name"></label>
+          <label>Legal name<input name="legal_name" value="{{ profile.legal_name or '' }}"></label>
+          <label>Email<input type="email" name="email" value="{{ profile.email or '' }}" autocomplete="email"></label>
+          <label>Phone<input name="phone" value="{{ profile.phone or '' }}" autocomplete="tel"></label>
+          <label class="wide">Address line 1<input name="address_line_1" value="{{ profile.address_line_1 or '' }}" autocomplete="address-line1"></label>
+          <label class="wide">Address line 2<input name="address_line_2" value="{{ profile.address_line_2 or '' }}" autocomplete="address-line2"></label>
+          <label>Postal code<input name="postal_code" value="{{ profile.postal_code or '' }}" autocomplete="postal-code"></label>
+          <label>City<input name="city" value="{{ profile.city or '' }}" autocomplete="address-level2"></label>
+          <label>Country<input name="country" value="{{ profile.country or '' }}" autocomplete="country-name"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Professional presence</legend>
+        <div class="form-grid">
+          <label>LinkedIn URL<input type="url" name="linkedin_url" value="{{ profile.linkedin_url or '' }}"></label>
+          <label>GitHub URL<input type="url" name="github_url" value="{{ profile.github_url or '' }}"></label>
+          <label class="wide">Portfolio URL<input type="url" name="portfolio_url" value="{{ profile.portfolio_url or '' }}"></label>
+          <label class="wide">Professional summary<textarea name="professional_summary" rows="5" placeholder="A factual master summary. Tailored versions will belong to each application.">{{ profile.professional_summary or '' }}</textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Eligibility and availability</legend>
+        <div class="form-grid">
+          <label class="wide">Work authorization<input name="work_authorization" value="{{ profile.work_authorization or '' }}" placeholder="e.g. Eligible to work in Germany"></label>
+          <label>Sponsorship required?
+            <select name="sponsorship_required">
+              <option value="" {% if profile.sponsorship_required is none %}selected{% endif %}>Not specified</option>
+              <option value="yes" {% if profile.sponsorship_required is sameas true %}selected{% endif %}>Yes</option>
+              <option value="no" {% if profile.sponsorship_required is sameas false %}selected{% endif %}>No</option>
+            </select>
+          </label>
+          <label>Notice period<input name="notice_period" value="{{ profile.notice_period or '' }}" placeholder="e.g. 4 weeks"></label>
+          <label>Relocation<input name="willing_to_relocate" value="{{ profile.willing_to_relocate or '' }}" placeholder="e.g. Yes, within Germany"></label>
+          <label>Travel<input name="willing_to_travel" value="{{ profile.willing_to_travel or '' }}" placeholder="e.g. Up to 20%"></label>
+          <label>Driving licence<input name="driving_licence" value="{{ profile.driving_licence or '' }}" placeholder="e.g. EU class B"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Skills and languages</legend>
+        <div class="form-grid">
+          <label class="wide">Skills and tools<textarea name="skills" rows="4" placeholder="VHDL, Verilog, FPGA verification, Python…">{{ profile.skills or '' }}</textarea></label>
+          <label class="wide">Languages<textarea name="languages" rows="3" placeholder="English — C1; German — B1; Turkish — native">{{ profile.languages or '' }}</textarea></label>
+          <label class="wide">Certifications<textarea name="certifications" rows="3">{{ profile.certifications or '' }}</textarea></label>
+        </div>
+      </fieldset>
+
+      <div class="form-actions"><button type="submit">Save core profile</button></div>
+    </form>
+
+    <section class="panel profile-section" id="experience">
+      <div class="section-heading">
+        <div><p class="eyebrow">Employment history</p><h2>Experience</h2></div>
+        <span class="count-badge">{{ profile.experiences|length }}</span>
+      </div>
+      {% for item in profile.experiences %}
+      <article class="profile-entry">
+        <div class="entry-heading">
+          <div><h3>{{ item.title }}</h3><p>{{ item.employer }}{% if item.location %} · {{ item.location }}{% endif %}</p></div>
+          <span>{{ item.start_date or 'Start unknown' }} – {{ 'Present' if item.current else (item.end_date or 'End unknown') }}</span>
+        </div>
+        {% if item.achievements %}<p class="pre-line">{{ item.achievements }}</p>{% endif %}
+        {% if item.technologies %}<p class="entry-meta">{{ item.technologies }}</p>{% endif %}
+        <details>
+          <summary>Edit experience</summary>
+          <form method="post" action="/profile/experiences/{{ item.id }}" class="mini-form">
+            <label>Employer<input name="employer" value="{{ item.employer }}" required></label>
+            <label>Title<input name="title" value="{{ item.title }}" required></label>
+            <label>Location<input name="location" value="{{ item.location or '' }}"></label>
+            <label>Start date<input type="date" name="start_date" value="{{ item.start_date or '' }}"></label>
+            <label>End date<input type="date" name="end_date" value="{{ item.end_date or '' }}"></label>
+            <label class="checkbox"><input type="checkbox" name="current" {% if item.current %}checked{% endif %}> Current position</label>
+            <label class="wide">Responsibilities<textarea name="responsibilities">{{ item.responsibilities or '' }}</textarea></label>
+            <label class="wide">Achievements<textarea name="achievements">{{ item.achievements or '' }}</textarea></label>
+            <label class="wide">Technologies<input name="technologies" value="{{ item.technologies or '' }}"></label>
+            <button type="submit">Update experience</button>
+          </form>
+          <form method="post" action="/profile/experiences/{{ item.id }}/delete" data-confirm="Delete this experience entry?" class="delete-row"><button class="text-button danger">Delete</button></form>
+        </details>
+      </article>
+      {% else %}<p class="empty-note">No experience entries yet.</p>{% endfor %}
+      <details class="add-entry">
+        <summary>Add experience</summary>
+        <form method="post" action="/profile/experiences" class="mini-form">
+          <label>Employer<input name="employer" required></label>
+          <label>Title<input name="title" required></label>
+          <label>Location<input name="location"></label>
+          <label>Start date<input type="date" name="start_date"></label>
+          <label>End date<input type="date" name="end_date"></label>
+          <label class="checkbox"><input type="checkbox" name="current"> Current position</label>
+          <label class="wide">Responsibilities<textarea name="responsibilities"></textarea></label>
+          <label class="wide">Achievements<textarea name="achievements" placeholder="One achievement per line; include measurable impact where possible."></textarea></label>
+          <label class="wide">Technologies<input name="technologies"></label>
+          <button type="submit">Add experience</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel profile-section" id="education">
+      <div class="section-heading"><div><p class="eyebrow">Academic history</p><h2>Education</h2></div><span class="count-badge">{{ profile.educations|length }}</span></div>
+      {% for item in profile.educations %}
+      <article class="profile-entry">
+        <div class="entry-heading"><div><h3>{{ item.degree }}</h3><p>{{ item.institution }}{% if item.field_of_study %} · {{ item.field_of_study }}{% endif %}</p></div><span>{{ item.start_date or '' }}{% if item.start_date or item.end_date %} – {% endif %}{{ item.end_date or '' }}</span></div>
+        <details><summary>Edit education</summary>
+          <form method="post" action="/profile/educations/{{ item.id }}" class="mini-form">
+            <label>Institution<input name="institution" value="{{ item.institution }}" required></label>
+            <label>Degree<input name="degree" value="{{ item.degree }}" required></label>
+            <label>Field of study<input name="field_of_study" value="{{ item.field_of_study or '' }}"></label>
+            <label>Location<input name="location" value="{{ item.location or '' }}"></label>
+            <label>Start date<input type="date" name="start_date" value="{{ item.start_date or '' }}"></label>
+            <label>End date<input type="date" name="end_date" value="{{ item.end_date or '' }}"></label>
+            <label>Grade<input name="grade" value="{{ item.grade or '' }}"></label>
+            <label class="wide">Notes<textarea name="notes">{{ item.notes or '' }}</textarea></label>
+            <button type="submit">Update education</button>
+          </form>
+          <form method="post" action="/profile/educations/{{ item.id }}/delete" data-confirm="Delete this education entry?" class="delete-row"><button class="text-button danger">Delete</button></form>
+        </details>
+      </article>
+      {% else %}<p class="empty-note">No education entries yet.</p>{% endfor %}
+      <details class="add-entry"><summary>Add education</summary>
+        <form method="post" action="/profile/educations" class="mini-form">
+          <label>Institution<input name="institution" required></label><label>Degree<input name="degree" required></label>
+          <label>Field of study<input name="field_of_study"></label><label>Location<input name="location"></label>
+          <label>Start date<input type="date" name="start_date"></label><label>End date<input type="date" name="end_date"></label>
+          <label>Grade<input name="grade"></label><label class="wide">Notes<textarea name="notes"></textarea></label>
+          <button type="submit">Add education</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel profile-section" id="projects">
+      <div class="section-heading"><div><p class="eyebrow">Evidence of your work</p><h2>Projects and publications</h2></div><span class="count-badge">{{ profile.projects|length }}</span></div>
+      {% for item in profile.projects %}
+      <article class="profile-entry">
+        <div class="entry-heading"><div><h3>{{ item.name }}</h3><p>{{ item.role or 'Project' }}</p></div>{% if item.project_url %}<a href="{{ item.project_url }}" target="_blank" rel="noreferrer">Open link</a>{% endif %}</div>
+        {% if item.impact %}<p class="pre-line">{{ item.impact }}</p>{% endif %}
+        {% if item.technologies %}<p class="entry-meta">{{ item.technologies }}</p>{% endif %}
+        <details><summary>Edit project</summary>
+          <form method="post" action="/profile/projects/{{ item.id }}" class="mini-form">
+            <label>Name<input name="name" value="{{ item.name }}" required></label><label>Role<input name="role" value="{{ item.role or '' }}"></label>
+            <label class="wide">URL<input type="url" name="project_url" value="{{ item.project_url or '' }}"></label>
+            <label>Start date<input type="date" name="start_date" value="{{ item.start_date or '' }}"></label><label>End date<input type="date" name="end_date" value="{{ item.end_date or '' }}"></label>
+            <label class="wide">Description<textarea name="description">{{ item.description or '' }}</textarea></label>
+            <label class="wide">Impact<textarea name="impact">{{ item.impact or '' }}</textarea></label>
+            <label class="wide">Technologies<input name="technologies" value="{{ item.technologies or '' }}"></label>
+            <button type="submit">Update project</button>
+          </form>
+          <form method="post" action="/profile/projects/{{ item.id }}/delete" data-confirm="Delete this project?" class="delete-row"><button class="text-button danger">Delete</button></form>
+        </details>
+      </article>
+      {% else %}<p class="empty-note">No projects yet.</p>{% endfor %}
+      <details class="add-entry"><summary>Add project or publication</summary>
+        <form method="post" action="/profile/projects" class="mini-form">
+          <label>Name<input name="name" required></label><label>Role<input name="role"></label>
+          <label class="wide">URL<input type="url" name="project_url"></label>
+          <label>Start date<input type="date" name="start_date"></label><label>End date<input type="date" name="end_date"></label>
+          <label class="wide">Description<textarea name="description"></textarea></label><label class="wide">Impact<textarea name="impact"></textarea></label>
+          <label class="wide">Technologies<input name="technologies"></label><button type="submit">Add project</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel profile-section" id="answers">
+      <div class="section-heading"><div><p class="eyebrow">Copy-ready facts</p><h2>Reusable answers</h2></div><span class="count-badge">{{ profile.answers|length }}</span></div>
+      <p class="quiet">Store reviewed answers such as availability, motivation, salary wording, or preferred working style. Tailor them before using them in an application.</p>
+      {% for item in profile.answers %}
+      <article class="profile-entry answer-entry">
+        <span class="stage-chip">{{ item.category }}</span><h3>{{ item.question }}</h3><p class="pre-line">{{ item.answer }}</p>
+        <details><summary>Edit answer</summary>
+          <form method="post" action="/profile/answers/{{ item.id }}" class="mini-form">
+            <label>Category<input name="category" value="{{ item.category }}"></label><label class="wide">Question<input name="question" value="{{ item.question }}" required></label>
+            <label class="wide">Answer<textarea name="answer" rows="5" required>{{ item.answer }}</textarea></label><label class="wide">Notes<textarea name="notes">{{ item.notes or '' }}</textarea></label>
+            <button type="submit">Update answer</button>
+          </form>
+          <form method="post" action="/profile/answers/{{ item.id }}/delete" data-confirm="Delete this reusable answer?" class="delete-row"><button class="text-button danger">Delete</button></form>
+        </details>
+      </article>
+      {% else %}<p class="empty-note">No reusable answers yet.</p>{% endfor %}
+      <details class="add-entry"><summary>Add reusable answer</summary>
+        <form method="post" action="/profile/answers" class="mini-form">
+          <label>Category<input name="category" placeholder="Availability, Motivation, Salary…"></label><label class="wide">Question<input name="question" required></label>
+          <label class="wide">Answer<textarea name="answer" rows="5" required></textarea></label><label class="wide">Notes<textarea name="notes"></textarea></label>
+          <button type="submit">Add answer</button>
+        </form>
+      </details>
+    </section>
+  </div>
+</section>
+{% endblock %}
